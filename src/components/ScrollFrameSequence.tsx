@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface ScrollFrameSequenceProps {
   frameCount: number;
@@ -6,135 +6,250 @@ interface ScrollFrameSequenceProps {
   width?: number;
   height?: number;
   className?: string;
+  preloadRange?: number; // How many frames to preload on each side
 }
 
-/**
- * Canvas-based scroll-tied frame sequence (Apple AirPods style).
- * Preloads all frames, then draws the one matching scroll progress
- * within the parent scroll container.
- */
 export const ScrollFrameSequence = ({
   frameCount,
   framePath,
   width = 1280,
   height = 720,
   className,
+  preloadRange = 30, // Preload 30 frames before/after current
 }: ScrollFrameSequenceProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const imagesRef = useRef<HTMLImageElement[]>([]);
+  const imagesRef = useRef<Map<number, HTMLImageElement>>(new Map());
   const currentFrameRef = useRef<number>(-1);
-  const [loaded, setLoaded] = useState(0);
+  const preloadRangeRef = useRef(preloadRange);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const loadingQueueRef = useRef<Set<number>>(new Set());
+  const rafScrollRef = useRef<number>(0);
+  const rafDrawRef = useRef<number>(0);
 
-  const drawFrame = (index: number) => {
+  // Calculate scroll height based on frame count (more natural scrolling)
+  const scrollHeight = frameCount * 8; // 8px per frame ≈ 4824px for 603 frames
+
+  const drawFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
-    const img = imagesRef.current[index];
+    const img = imagesRef.current.get(index);
+
     if (!canvas || !img || !img.complete || img.naturalWidth === 0) return;
     if (currentFrameRef.current === index) return;
-    currentFrameRef.current = index;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // cover-fit
-    const scale = Math.max(
-      canvas.width / img.naturalWidth,
-      canvas.height / img.naturalHeight,
-    );
-    const w = img.naturalWidth * scale;
-    const h = img.naturalHeight * scale;
-    const x = (canvas.width - w) / 2;
-    const y = (canvas.height - h) / 2;
-    ctx.drawImage(img, x, y, w, h);
-  };
 
-  const getFrameForScroll = () => {
+    currentFrameRef.current = index;
+
+    // Use requestAnimationFrame for smooth drawing
+    if (rafDrawRef.current) cancelAnimationFrame(rafDrawRef.current);
+
+    rafDrawRef.current = requestAnimationFrame(() => {
+      const ctx = canvas.getContext("2d", { alpha: false }); // alpha: false for performance
+      if (!ctx) return;
+
+      // Preserve canvas size without clearing (drawImage overwrites)
+      const scale = Math.max(
+        canvas.width / img.naturalWidth,
+        canvas.height / img.naturalHeight,
+      );
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+
+      ctx.drawImage(img, x, y, w, h);
+    });
+  }, []);
+
+  // Load a specific frame with priority
+  const loadFrame = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= frameCount) return;
+      if (imagesRef.current.has(index)) return;
+      if (loadingQueueRef.current.has(index)) return;
+
+      loadingQueueRef.current.add(index);
+      const img = new Image();
+      img.decode = true; // Hint for browser
+
+      img.onload = () => {
+        loadingQueueRef.current.delete(index);
+        imagesRef.current.set(index, img);
+        setLoadedCount((prev) => prev + 1);
+
+        // If this is the current frame, draw it
+        if (index === currentFrameRef.current) {
+          drawFrame(index);
+        }
+      };
+
+      img.onerror = () => {
+        loadingQueueRef.current.delete(index);
+        console.warn(`Failed to load frame ${index}`);
+      };
+
+      img.src = framePath(index + 1);
+    },
+    [frameCount, framePath, drawFrame],
+  );
+
+  // Preload frames around target index
+  const preloadRangeAround = useCallback(
+    (targetIndex: number) => {
+      const currentPreloadRange = preloadRangeRef.current;
+      const start = Math.max(0, targetIndex - currentPreloadRange);
+      const end = Math.min(frameCount - 1, targetIndex + currentPreloadRange);
+
+      // Load closest frames first
+      for (let i = 0; i <= currentPreloadRange; i++) {
+        loadFrame(targetIndex + i);
+        loadFrame(targetIndex - i);
+      }
+
+      // Then load remaining in range
+      for (let i = start; i <= end; i++) {
+        if (!imagesRef.current.has(i) && !loadingQueueRef.current.has(i)) {
+          loadFrame(i);
+        }
+      }
+    },
+    [frameCount, loadFrame],
+  );
+
+  const getFrameForScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return 0;
+
     const rect = container.getBoundingClientRect();
     const scrollable = container.offsetHeight - window.innerHeight;
     const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
-    return Math.min(frameCount - 1, Math.floor(progress * (frameCount - 1)));
-  };
+    const frameIndex = Math.min(
+      frameCount - 1,
+      Math.floor(progress * (frameCount - 1)),
+    );
 
-  // Preload all frames
-  useEffect(() => {
-    let cancelled = false;
-    let loadedCount = 0;
-    const imgs: HTMLImageElement[] = new Array(frameCount);
-
-    for (let i = 0; i < frameCount; i++) {
-      const img = new Image();
-      img.src = framePath(i + 1);
-      img.onload = () => {
-        if (cancelled) return;
-        loadedCount++;
-        setLoaded(loadedCount);
-        if (loadedCount === 1) drawFrame(0);
-      };
-      imgs[i] = img;
-    }
-    imagesRef.current = imgs;
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return frameIndex;
   }, [frameCount]);
 
-  // Resize canvas to viewport
+  // Scroll handler with preloading
   useEffect(() => {
-    const resize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
-      currentFrameRef.current = -1;
-      drawFrame(getFrameForScroll());
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let ticking = false;
 
-  // Scroll listener (rAF throttled)
-  useEffect(() => {
-    let rafId = 0;
     const onScroll = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => drawFrame(getFrameForScroll()));
+      if (ticking) return;
+
+      ticking = true;
+      rafScrollRef.current = requestAnimationFrame(() => {
+        const frameIndex = getFrameForScroll();
+
+        if (frameIndex !== currentFrameRef.current) {
+          drawFrame(frameIndex);
+          preloadRangeAround(frameIndex);
+        }
+
+        ticking = false;
+      });
     };
+
     window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
+    onScroll(); // Initial call
+
     return () => {
       window.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(rafId);
+      if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frameCount]);
+  }, [getFrameForScroll, drawFrame, preloadRangeAround]);
 
-  const progress = Math.round((loaded / frameCount) * 100);
-  const ready = loaded === frameCount;
+  // Initial load: load first frame and preload around it
+  useEffect(() => {
+    preloadRangeRef.current = preloadRange;
+  }, [preloadRange]);
+
+  // Initial load: load first frame and preload around it
+  useEffect(() => {
+    // Load first frame immediately
+    loadFrame(0);
+    preloadRangeAround(0);
+
+    // Gradually load rest in background
+    const currentPreloadRange = preloadRangeRef.current;
+    const loadRemaining = () => {
+      for (
+        let i = currentPreloadRange;
+        i < frameCount;
+        i += currentPreloadRange * 2
+      ) {
+        setTimeout(() => {
+          for (
+            let j = i;
+            j < Math.min(i + currentPreloadRange, frameCount);
+            j++
+          ) {
+            if (!imagesRef.current.has(j) && !loadingQueueRef.current.has(j)) {
+              loadFrame(j);
+            }
+          }
+        }, 100);
+      }
+    };
+
+    // Start background loading after initial frames are loaded
+    const timeout = setTimeout(loadRemaining, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [frameCount, loadFrame, preloadRangeAround]);
+
+  // Canvas resize handler (optimized)
+  useEffect(() => {
+    let resizeTimeout: number;
+
+    const resize = () => {
+      // Debounce resize
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+
+      resizeTimeout = window.setTimeout(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5); // Cap at 1.5x for performance
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+
+        // Redraw current frame
+        if (currentFrameRef.current !== -1) {
+          drawFrame(currentFrameRef.current);
+        }
+      }, 150);
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+    };
+  }, [drawFrame]);
+
+  const progress = Math.round((loadedCount / frameCount) * 100);
+  const ready = loadedCount >= Math.min(frameCount, preloadRange * 3); // Show UI once enough frames loaded
 
   return (
     <div
       ref={containerRef}
       className={className}
-      style={{ height: `${frameCount * 4}px`, position: "relative" }}
+      style={{ height: `${scrollHeight}px`, position: "relative" }}
     >
-      {/* Sticky stage */}
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <canvas
           ref={canvasRef}
           width={width}
           height={height}
-          className="block h-full w-full"
+          className="block h-full w-full object-cover"
+          style={{ willChange: "transform" }} // GPU acceleration hint
         />
         {!ready && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
             <div className="flex flex-col items-center gap-3">
               <div className="h-1 w-48 overflow-hidden rounded-full bg-muted">
                 <div
