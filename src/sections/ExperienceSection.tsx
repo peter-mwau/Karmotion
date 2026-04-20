@@ -5,23 +5,7 @@ import {
   useSpring,
   useTransform,
 } from "framer-motion";
-import {
-  Gauge,
-  ShieldCheck,
-  Zap,
-  Sparkles,
-  Crown,
-  Clock,
-  MapPin,
-  Award,
-  Gem,
-  Infinity,
-  Users,
-  Settings,
-  Star,
-  Heart,
-  Compass,
-} from "lucide-react";
+import { Gauge, Zap, Crown, Gem, Users } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const EXPERIENCES = [
@@ -392,17 +376,15 @@ export const ExperienceSection = () => {
           </div>
 
           <div className="flex gap-6">
-            {["Specs", "Heritage", "Inquiry", "Configurator"].map(
-              (item, idx) => (
-                <motion.span
-                  key={item}
-                  whileHover={{ color: "#fff" }}
-                  className="cursor-pointer font-mono text-[9px] font-bold uppercase tracking-[0.4em] text-white/30 transition-colors hover:text-white"
-                >
-                  {item}
-                </motion.span>
-              ),
-            )}
+            {["Specs", "Heritage", "Inquiry", "Configurator"].map((item) => (
+              <motion.span
+                key={item}
+                whileHover={{ color: "#fff" }}
+                className="cursor-pointer font-mono text-[9px] font-bold uppercase tracking-[0.4em] text-white/30 transition-colors hover:text-white"
+              >
+                {item}
+              </motion.span>
+            ))}
           </div>
 
           <div className="flex items-center gap-2">

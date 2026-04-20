@@ -1,14 +1,7 @@
-import {
-  motion,
-  useMotionValue,
-  useTransform,
-  useSpring,
-  AnimatePresence,
-} from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
+import { useEffect } from "react";
 
 export const HeroSection = ({ progress }: { progress: number }) => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [hoverState, setHoverState] = useState(false);
 
   const mouseX = useMotionValue(0);
@@ -37,6 +30,16 @@ export const HeroSection = ({ progress }: { progress: number }) => {
   const blurIntensity = useTransform(progressMotion, [0, 0.25], [0, 12]);
   const yOffset = useTransform(progressMotion, [0, 0.25], [0, -100]);
   const subtitleOpacity = useTransform(progressMotion, [0, 0.15], [1, 0]);
+  const scrollIndicatorOpacity = useTransform(
+    progressMotion,
+    [0, 0.15],
+    [1, 0],
+  );
+  const scrollIndicatorYOffset = useTransform(
+    progressMotion,
+    [0, 0.15],
+    [0, -20],
+  );
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -44,7 +47,6 @@ export const HeroSection = ({ progress }: { progress: number }) => {
       const y = (e.clientY / window.innerHeight - 0.5) * 200;
       mouseX.set(x);
       mouseY.set(y);
-      setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -107,19 +109,19 @@ export const HeroSection = ({ progress }: { progress: number }) => {
         {[...Array(50)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute h-px w-px bg-white/20 rounded-full"
+            className="absolute h-px w-px rounded-full bg-white/20"
             initial={{
-              x: Math.random() * window.innerWidth,
-              y: Math.random() * window.innerHeight,
+              x: `${(i * 17) % 100}%`,
+              y: `${(i * 23) % 100}%`,
             }}
             animate={{
-              y: [null, Math.random() * window.innerHeight],
+              y: [0, -20 - (i % 5) * 10, 0],
               opacity: [0, 1, 0],
             }}
             transition={{
-              duration: 3 + Math.random() * 4,
+              duration: 3 + (i % 4) * 0.75,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: (i % 10) * 0.35,
               ease: "linear",
             }}
           />
@@ -278,8 +280,8 @@ export const HeroSection = ({ progress }: { progress: number }) => {
       <motion.div
         className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
         animate={{
-          opacity: useTransform(progressMotion, [0, 0.15], [1, 0]),
-          y: useTransform(progressMotion, [0, 0.15], [0, -20]),
+          opacity: scrollIndicatorOpacity,
+          y: scrollIndicatorYOffset,
         }}
       >
         <div className="relative h-12 w-px overflow-hidden bg-white/10">
