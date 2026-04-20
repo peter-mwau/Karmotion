@@ -26,6 +26,36 @@ export const ScrollFrameSequence = ({
   const currentFrameRef = useRef<number>(-1);
   const [loaded, setLoaded] = useState(0);
 
+  const drawFrame = (index: number) => {
+    const canvas = canvasRef.current;
+    const img = imagesRef.current[index];
+    if (!canvas || !img || !img.complete || img.naturalWidth === 0) return;
+    if (currentFrameRef.current === index) return;
+    currentFrameRef.current = index;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // cover-fit
+    const scale = Math.max(
+      canvas.width / img.naturalWidth,
+      canvas.height / img.naturalHeight,
+    );
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    const x = (canvas.width - w) / 2;
+    const y = (canvas.height - h) / 2;
+    ctx.drawImage(img, x, y, w, h);
+  };
+
+  const getFrameForScroll = () => {
+    const container = containerRef.current;
+    if (!container) return 0;
+    const rect = container.getBoundingClientRect();
+    const scrollable = container.offsetHeight - window.innerHeight;
+    const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
+    return Math.min(frameCount - 1, Math.floor(progress * (frameCount - 1)));
+  };
+
   // Preload all frames
   useEffect(() => {
     let cancelled = false;
@@ -51,27 +81,6 @@ export const ScrollFrameSequence = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameCount]);
 
-  const drawFrame = (index: number) => {
-    const canvas = canvasRef.current;
-    const img = imagesRef.current[index];
-    if (!canvas || !img || !img.complete || img.naturalWidth === 0) return;
-    if (currentFrameRef.current === index) return;
-    currentFrameRef.current = index;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // cover-fit
-    const scale = Math.max(
-      canvas.width / img.naturalWidth,
-      canvas.height / img.naturalHeight,
-    );
-    const w = img.naturalWidth * scale;
-    const h = img.naturalHeight * scale;
-    const x = (canvas.width - w) / 2;
-    const y = (canvas.height - h) / 2;
-    ctx.drawImage(img, x, y, w, h);
-  };
-
   // Resize canvas to viewport
   useEffect(() => {
     const resize = () => {
@@ -90,15 +99,6 @@ export const ScrollFrameSequence = ({
     return () => window.removeEventListener("resize", resize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const getFrameForScroll = () => {
-    const container = containerRef.current;
-    if (!container) return 0;
-    const rect = container.getBoundingClientRect();
-    const scrollable = container.offsetHeight - window.innerHeight;
-    const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
-    return Math.min(frameCount - 1, Math.floor(progress * (frameCount - 1)));
-  };
 
   // Scroll listener (rAF throttled)
   useEffect(() => {
