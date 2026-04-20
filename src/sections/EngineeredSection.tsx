@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 
 const ENGINEERING_DATA = {
   title: "Precision Engineered",
@@ -54,7 +54,6 @@ const ENGINEERING_DATA = {
 
 export const EngineeredSection = () => {
   const [hoveredStat, setHoveredStat] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Mouse-following line effect
   const mouseX = useMotionValue(0);
