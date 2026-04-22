@@ -69,7 +69,7 @@ export const ScrollFrameSequence = ({
 
       loadingQueueRef.current.add(index);
       const img = new Image();
-      img.decode = true; // Hint for browser
+      img.decoding = "async"; // Hint for browser
 
       img.onload = () => {
         loadingQueueRef.current.delete(index);
