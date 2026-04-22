@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   Menu,
@@ -23,6 +23,12 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isMobile) {
+      setIsOpen(false);
+    }
+  }, [isMobile]);
+
   // Determine active item based on scroll progress (rough mapping)
   const activeIndex = Math.min(
     Math.floor(scrollProgress * NAV_ITEMS.length),
@@ -31,17 +37,17 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
   const activeItem = NAV_ITEMS[activeIndex].label;
 
   return (
-    <div className="fixed inset-y-0 left-0 z-[100] flex items-center px-6 pointer-events-none">
+    <div className="fixed inset-y-0 right-0 z-[100] flex items-start justify-end px-3 py-4 pointer-events-none md:left-0 md:right-auto md:items-center md:px-6 md:py-0">
       <LayoutGroup>
         <motion.nav
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="pointer-events-auto relative flex flex-col items-center gap-8 rounded-full border border-white/5 bg-black/20 p-4 backdrop-blur-md"
+          className={`pointer-events-auto relative flex flex-col items-center border border-white/5 bg-black/20 backdrop-blur-md ${isMobile ? "w-[72px] rounded-[2rem] p-3" : "gap-8 rounded-full p-4"}`}
         >
           {/* Top Brand Hex */}
-          <div className="mb-4 text-orange-500">
+          <div className={`${isMobile ? "mb-3" : "mb-4"} text-orange-500`}>
             <Hexagon
-              size={20}
+              size={isMobile ? 18 : 20}
               fill="currentColor"
               fillOpacity={0.2}
               strokeWidth={1.5}
@@ -49,13 +55,55 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
           </div>
 
           {isMobile ? (
-            /* Mobile Trigger */
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-white p-2"
-            >
-              {isOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            <div className="flex w-full flex-col items-center gap-3">
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
+                aria-label={isOpen ? "Close navigation" : "Open navigation"}
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 text-white transition-colors hover:bg-white/10"
+              >
+                {isOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex w-full flex-col items-center gap-3 pb-2"
+                  >
+                    {NAV_ITEMS.map((item) => {
+                      const isActive = activeItem === item.label;
+                      const Icon = item.icon;
+
+                      return (
+                        <motion.a
+                          key={item.label}
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          whileTap={{ scale: 0.96 }}
+                          className="relative flex h-11 w-11 items-center justify-center rounded-full transition-colors"
+                        >
+                          <motion.div
+                            layoutId={
+                              isActive ? "nav-pill-mobile-active" : undefined
+                            }
+                            className={`absolute inset-0 rounded-full ${isActive ? "bg-orange-500" : "bg-white/10"}`}
+                          />
+                          <Icon
+                            size={17}
+                            className={`relative z-10 ${isActive ? "text-black" : "text-white/45"}`}
+                            strokeWidth={1.5}
+                          />
+                        </motion.a>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           ) : (
             /* Desktop Vertical Items */
             <div className="flex flex-col gap-6">
@@ -110,7 +158,9 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
           )}
 
           {/* Vertical Progress Line */}
-          <div className="mt-4 h-24 w-[1px] bg-white/10 relative overflow-hidden">
+          <div
+            className={`relative overflow-hidden bg-white/10 ${isMobile ? "mt-3 h-20 w-[1px]" : "mt-4 h-24 w-[1px]"}`}
+          >
             <motion.div
               className="absolute top-0 w-full bg-orange-500"
               style={{ height: `${scrollProgress * 100}%` }}
@@ -118,32 +168,6 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
           </div>
         </motion.nav>
       </LayoutGroup>
-
-      {/* Mobile Fullscreen Overlay */}
-      <AnimatePresence>
-        {isOpen && isMobile && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="fixed inset-0 z-[-1] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl"
-          >
-            {NAV_ITEMS.map((item, i) => (
-              <motion.a
-                key={item.label}
-                href={item.href}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                onClick={() => setIsOpen(false)}
-                className="py-6 font-serif text-4xl font-black italic uppercase tracking-tighter text-white"
-              >
-                {item.label}
-              </motion.a>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
