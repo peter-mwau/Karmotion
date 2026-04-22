@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   Menu,
@@ -23,12 +23,6 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isMobile) {
-      setIsOpen(false);
-    }
-  }, [isMobile]);
-
   // Determine active item based on scroll progress (rough mapping)
   const activeIndex = Math.min(
     Math.floor(scrollProgress * NAV_ITEMS.length),
@@ -37,12 +31,12 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
   const activeItem = NAV_ITEMS[activeIndex].label;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-[100] flex items-start justify-end px-3 py-4 pointer-events-none md:left-0 md:right-auto md:items-center md:px-6 md:py-0">
+    <div className="fixed inset-y-0 right-0 z-100 flex items-start justify-end px-3 py-4 pointer-events-none md:left-0 md:right-auto md:items-center md:px-6 md:py-0">
       <LayoutGroup>
         <motion.nav
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className={`pointer-events-auto relative flex flex-col items-center border border-white/5 bg-black/20 backdrop-blur-md ${isMobile ? "w-[72px] rounded-[2rem] p-3" : "gap-8 rounded-full p-4"}`}
+          className={`pointer-events-auto relative flex flex-col items-center border border-white/5 bg-black/20 backdrop-blur-md ${isMobile ? "w-18 rounded-4xl p-3" : "gap-8 rounded-full p-4"}`}
         >
           {/* Top Brand Hex */}
           <div className={`${isMobile ? "mb-3" : "mb-4"} text-orange-500`}>
@@ -159,7 +153,7 @@ export const Navbar = ({ scrollProgress }: { scrollProgress: number }) => {
 
           {/* Vertical Progress Line */}
           <div
-            className={`relative overflow-hidden bg-white/10 ${isMobile ? "mt-3 h-20 w-[1px]" : "mt-4 h-24 w-[1px]"}`}
+            className={`relative overflow-hidden bg-white/10 ${isMobile ? "mt-3 h-20 w-px" : "mt-4 h-24 w-px"}`}
           >
             <motion.div
               className="absolute top-0 w-full bg-orange-500"
