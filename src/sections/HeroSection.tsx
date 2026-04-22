@@ -279,7 +279,7 @@ export const HeroSection = ({ progress }: { progress: number }) => {
       {/* Scroll Indicator with Progress */}
       <motion.div
         className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
-        animate={{
+        style={{
           opacity: scrollIndicatorOpacity,
           y: scrollIndicatorYOffset,
         }}
