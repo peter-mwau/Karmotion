@@ -7,6 +7,7 @@ import {
   EngineeredSection,
   FeaturesSection,
   ExperienceSection,
+  FooterSection,
 } from "@/sections";
 
 const FRAME_COUNT = 603;
@@ -19,7 +20,7 @@ const Index = () => {
   return (
     <main className="relative bg-black text-foreground">
       {/* Background gradient */}
-      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-background via-background/50 to-background pointer-events-none" />
+      <div className="fixed inset-0 -z-10 bg-linear-to-b from-background via-background/50 to-background pointer-events-none" />
 
       {/* Navigation with scroll progress */}
       <Navbar scrollProgress={scrollProgress} />
@@ -43,7 +44,10 @@ const Index = () => {
           {scrollProgress >= 0.5 && scrollProgress < 0.75 && (
             <FeaturesSection key="features" />
           )}
-          {scrollProgress >= 0.75 && <ExperienceSection key="experience" />}
+          {scrollProgress >= 0.75 && scrollProgress < 0.9 && (
+            <ExperienceSection key="experience" />
+          )}
+          {scrollProgress >= 0.9 && <FooterSection key="footer" />}
         </AnimatePresence>
       </div>
     </main>

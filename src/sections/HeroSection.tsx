@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export const HeroSection = ({ progress }: { progress: number }) => {
   const [hoverState, setHoverState] = useState(false);
